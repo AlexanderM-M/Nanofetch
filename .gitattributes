@@ -1,0 +1,5 @@
+*.gz binary
+*.bam binary
+*.bai binary
+*.csi binary
+

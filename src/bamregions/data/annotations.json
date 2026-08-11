@@ -1,0 +1,20 @@
+{
+  "grch37": {
+    "gene_records": 80315,
+    "label": "GENCODE 50lift37 (GRCh37.p13)",
+    "source_sha256": "29aaf3c2a04bd2497c46f2fb6328b21fd5f7160d4e399d4d75bb68d1a9d75388",
+    "url": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_50/GRCh37_mapping/gencode.v50lift37.annotation.gtf.gz"
+  },
+  "grch38": {
+    "gene_records": 78733,
+    "label": "GENCODE 50 (GRCh38.p14)",
+    "source_sha256": "83fba3e9b03f0b8c958f3595c6c350adc55f468abf8b0e47b6d5284cfe13a453",
+    "url": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_50/gencode.v50.annotation.gtf.gz"
+  },
+  "t2t": {
+    "gene_records": 61342,
+    "label": "T2T-CHM13v2.0 RefSeq/Liftoff v5.3",
+    "source_sha256": "4a4f67d57dcabd6b7fe6efc91bbd0751d6fdf952ea2c626c2a4fd62615f75eeb",
+    "url": "https://human-pangenomics.s3.amazonaws.com/T2T/CHM13/assemblies/annotation/chm13v2.0_RefSeq_Liftoff_v5.3.gff.gz"
+  }
+}
