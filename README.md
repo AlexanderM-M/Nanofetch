@@ -3,7 +3,7 @@
 Ridiculously easy gene-region BAM extraction.
 
 ```console
-$ bamregions tumor.bam EGFR --index
+bamregions tumor.bam EGFR --index
 Genome: GRCh38
 Annotation: GENCODE 50 (GRCh38.p14)
 Wrote EGFR.bam (18432 alignments) + EGFR.bam.bai
@@ -69,7 +69,7 @@ bamregions t2t-aligned.bam --panel cns --genome hs1
 Inspect the resolved regions without writing BAMs:
 
 ```console
-$ bamregions tumor.bam EGFR --dry-run
+bamregions tumor.bam EGFR --dry-run
 Genome: GRCh38
 Annotation: GENCODE 50 (GRCh38.p14)
 EGFR   chr7:54018820-56211628   EGFR.bam
