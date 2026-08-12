@@ -7,7 +7,7 @@ import pysam
 
 from . import __version__
 from .assemblies import resolve_contig
-from .errors import BamregionsError
+from .errors import NanoFetchError
 from .models import ExtractionResult, GeneInterval, Region
 
 
@@ -17,7 +17,7 @@ def padded_regions(
     padding: int,
 ) -> Tuple[Region, ...]:
     if padding < 0:
-        raise BamregionsError("--padding must be zero or greater.")
+        raise NanoFetchError("--padding must be zero or greater.")
     raw: List[Region] = []
     for interval in intervals:
         contig = resolve_contig(interval.contig, header_contigs)
@@ -40,17 +40,17 @@ def padded_regions(
 
 def validate_input(source: pysam.AlignmentFile, path: Path) -> None:
     if not source.is_bam:
-        raise BamregionsError(f"Input must be BAM; {path} is not a BAM file.")
+        raise NanoFetchError(f"Input must be BAM; {path} is not a BAM file.")
     try:
         source.check_index()
     except (ValueError, OSError) as error:
-        raise BamregionsError(
+        raise NanoFetchError(
             f"Input BAM is not indexed: {path}. Create an index with "
             f"'samtools index {path}' or 'pysam.index(\"{path}\")'."
         ) from error
     sort_order = source.header.to_dict().get("HD", {}).get("SO")
     if sort_order and sort_order != "coordinate":
-        raise BamregionsError(
+        raise NanoFetchError(
             f"Input BAM declares sort order {sort_order!r}; coordinate sorting is required."
         )
 
@@ -59,12 +59,12 @@ def header_with_program(source: pysam.AlignmentFile) -> dict:
     header = source.header.to_dict()
     programs = header.setdefault("PG", [])
     used = {record.get("ID") for record in programs}
-    program_id = "bamregions"
+    program_id = "nanofetch"
     suffix = 1
     while program_id in used:
         suffix += 1
-        program_id = f"bamregions.{suffix}"
-    programs.append({"ID": program_id, "PN": "bamregions", "VN": __version__})
+        program_id = f"nanofetch.{suffix}"
+    programs.append({"ID": program_id, "PN": "nanofetch", "VN": __version__})
     return header
 
 
@@ -86,12 +86,12 @@ def extract_gene(
     force: bool = False,
 ) -> ExtractionResult:
     if threads < 1:
-        raise BamregionsError("--threads must be at least 1.")
+        raise NanoFetchError("--threads must be at least 1.")
     header_contigs = dict(zip(source.references, source.lengths))
     regions = padded_regions(intervals, header_contigs, padding)
     output = output_dir / output_name(symbol)
     if output.exists() and not force:
-        raise BamregionsError(f"Output already exists: {output}. Use --force to replace it.")
+        raise NanoFetchError(f"Output already exists: {output}. Use --force to replace it.")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     descriptor, temporary_name = tempfile.mkstemp(
@@ -127,5 +127,5 @@ def extract_gene(
             pysam.index(*args)
             index_path = Path(str(output) + ".bai")
         except Exception as error:
-            raise BamregionsError(f"Created {output}, but indexing failed: {error}") from error
+            raise NanoFetchError(f"Created {output}, but indexing failed: {error}") from error
     return ExtractionResult(symbol, output, regions, count, index_path)

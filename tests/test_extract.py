@@ -3,10 +3,10 @@ from pathlib import Path
 import pysam
 import pytest
 
-from bamregions.annotations import resolve_gene
-from bamregions.cli import run
-from bamregions.errors import BamregionsError
-from bamregions.extract import extract_gene, padded_regions, validate_input
+from nanofetch.annotations import resolve_gene
+from nanofetch.cli import run
+from nanofetch.errors import NanoFetchError
+from nanofetch.extract import extract_gene, padded_regions, validate_input
 
 from conftest import make_bam
 
@@ -32,7 +32,7 @@ def test_extract_primary_and_create_index(grch38_bam, tmp_path):
     assert result.index.exists()
     with pysam.AlignmentFile(result.output, "rb") as output:
         assert [record.query_name for record in output] == ["primary"]
-        assert output.header.to_dict()["PG"][-1]["PN"] == "bamregions"
+        assert output.header.to_dict()["PG"][-1]["PN"] == "nanofetch"
 
 
 def test_supplementary_and_secondary_are_opt_in(grch38_bam, tmp_path):
@@ -49,7 +49,7 @@ def test_existing_output_is_protected(grch38_bam, tmp_path):
     output_dir.mkdir()
     (output_dir / "EGFR.bam").write_bytes(b"do not replace")
     with pysam.AlignmentFile(grch38_bam, "rb") as source:
-        with pytest.raises(BamregionsError, match="already exists"):
+        with pytest.raises(NanoFetchError, match="already exists"):
             extract_gene(
                 source, "EGFR", resolve_gene("EGFR", "grch38"), output_dir,
             )
@@ -83,6 +83,6 @@ def test_unindexed_input_has_actionable_error(tmp_path):
     bam = make_bam(tmp_path / "unindexed.bam")
     Path(str(bam) + ".bai").unlink()
     with pysam.AlignmentFile(bam, "rb") as source:
-        with pytest.raises(BamregionsError, match="samtools index"):
+        with pytest.raises(NanoFetchError, match="samtools index"):
             validate_input(source, bam)
 

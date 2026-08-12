@@ -1,12 +1,12 @@
 import pytest
 
-from bamregions.assemblies import (
+from nanofetch.assemblies import (
     choose_assembly,
     detect_assembly,
     normalize_assembly,
     resolve_contig,
 )
-from bamregions.errors import AssemblyError
+from nanofetch.errors import AssemblyError
 
 
 @pytest.mark.parametrize(

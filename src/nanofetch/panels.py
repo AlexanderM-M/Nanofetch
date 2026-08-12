@@ -1,10 +1,10 @@
 from importlib import resources
 from typing import Dict, List
 
-from .errors import BamregionsError
+from .errors import NanoFetchError
 
 
-PANELS_PACKAGE = "bamregions.data.panels"
+PANELS_PACKAGE = "nanofetch.data.panels"
 
 
 def available_panels() -> List[str]:
@@ -16,7 +16,7 @@ def load_panel(name: str) -> List[str]:
     normalized = name.lower()
     if normalized not in available_panels():
         choices = ", ".join(available_panels()) or "none"
-        raise BamregionsError(f"Unknown panel {name!r}. Available panels: {choices}.")
+        raise NanoFetchError(f"Unknown panel {name!r}. Available panels: {choices}.")
     resource = resources.files(PANELS_PACKAGE).joinpath(f"{normalized}.txt")
     with resource.open("r", encoding="utf-8") as handle:
         return [line.strip() for line in handle

@@ -6,11 +6,11 @@ from functools import lru_cache
 from importlib import resources
 from typing import Dict, List, Sequence, Tuple
 
-from .errors import BamregionsError, GeneNotFoundError
+from .errors import NanoFetchError, GeneNotFoundError
 from .models import GeneInterval
 
 
-DATA_PACKAGE = "bamregions.data"
+DATA_PACKAGE = "nanofetch.data"
 
 
 @lru_cache(maxsize=None)
@@ -49,7 +49,7 @@ def resolve_gene(symbol: str, assembly: str) -> Tuple[GeneInterval, ...]:
             return exact
         canonical_symbols = sorted({interval.symbol for interval in matches})
         if len(canonical_symbols) > 1:
-            raise BamregionsError(
+            raise NanoFetchError(
                 f"Gene alias {symbol!r} is ambiguous in the {assembly} annotation: "
                 f"{', '.join(canonical_symbols)}. Use a canonical symbol."
             )

@@ -1,8 +1,8 @@
 import pytest
 
-from bamregions.annotations import annotation_metadata, resolve_gene, unique_symbols
-from bamregions.errors import GeneNotFoundError
-from bamregions.panels import load_panel
+from nanofetch.annotations import annotation_metadata, resolve_gene, unique_symbols
+from nanofetch.errors import GeneNotFoundError
+from nanofetch.panels import load_panel
 
 
 @pytest.mark.parametrize("assembly", ["grch37", "grch38", "t2t"])

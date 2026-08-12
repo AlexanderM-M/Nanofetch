@@ -9,7 +9,7 @@ import pysam
 from . import __version__
 from .annotations import annotation_metadata, resolve_gene, unique_symbols
 from .assemblies import ASSEMBLY_LABELS, choose_assembly
-from .errors import BamregionsError
+from .errors import NanoFetchError
 from .extract import extract_gene, padded_regions, validate_input
 from .panels import available_panels, load_panel, panel_descriptions
 
@@ -33,7 +33,7 @@ def positive_integer(value: str) -> int:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
-        prog="bamregions",
+        prog="nanofetch",
         description="Ridiculously easy gene-region BAM extraction.",
     )
     result.add_argument("input", nargs="?", type=Path, help="coordinate-sorted, indexed BAM")
@@ -96,9 +96,9 @@ def run(argv: Sequence[str] = None) -> int:
         print_panels()
         return 0
     if args.input is None:
-        raise BamregionsError("An input BAM is required.")
+        raise NanoFetchError("An input BAM is required.")
     if not args.input.exists():
-        raise BamregionsError(f"Input does not exist: {args.input}")
+        raise NanoFetchError(f"Input does not exist: {args.input}")
 
     with pysam.AlignmentFile(str(args.input), "rb", threads=args.threads) as source:
         validate_input(source, args.input)
@@ -106,7 +106,7 @@ def run(argv: Sequence[str] = None) -> int:
         assembly = choose_assembly(args.genome, references)
         tokens = requested_tokens(args)
         if not tokens:
-            raise BamregionsError("Select at least one gene or use --panel NAME.")
+            raise NanoFetchError("Select at least one gene or use --panel NAME.")
         symbols = unique_symbols(tokens, assembly)
         metadata = annotation_metadata()[assembly]
         print(f"Genome: {ASSEMBLY_LABELS[assembly]}", file=sys.stderr)
@@ -127,7 +127,7 @@ def run(argv: Sequence[str] = None) -> int:
             collisions = [args.output_dir / f"{symbol}.bam" for symbol in symbols
                           if (args.output_dir / f"{symbol}.bam").exists()]
             if collisions:
-                raise BamregionsError(
+                raise NanoFetchError(
                     f"Output already exists: {collisions[0]}. Use --force to replace it."
                 )
 
@@ -153,10 +153,10 @@ def run(argv: Sequence[str] = None) -> int:
 def main() -> None:
     try:
         raise SystemExit(run())
-    except BamregionsError as error:
-        print(f"bamregions: error: {error}", file=sys.stderr)
+    except NanoFetchError as error:
+        print(f"nanofetch: error: {error}", file=sys.stderr)
         raise SystemExit(2)
     except (OSError, ValueError) as error:
-        print(f"bamregions: error: {error}", file=sys.stderr)
+        print(f"nanofetch: error: {error}", file=sys.stderr)
         raise SystemExit(2)
 

@@ -3,14 +3,14 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bamregions"
-version = "0.1.0"
+name = "nanofetch"
+version = "0.2.0"
 description = "Ridiculously easy gene-region BAM extraction"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{name = "bamregions contributors"}]
+authors = [{name = "nanofetch contributors"}]
 keywords = ["bam", "bioinformatics", "genomics", "samtools", "t2t"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -36,7 +36,7 @@ Issues = "https://github.com/AlexanderM-M/Nanofetch/issues"
 test = ["pytest>=7"]
 
 [project.scripts]
-bamregions = "bamregions.cli:main"
+nanofetch = "nanofetch.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -46,7 +46,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-bamregions = ["data/*.json", "data/*.tsv.gz", "data/panels/*.txt"]
+nanofetch = ["data/*.json", "data/*.tsv.gz", "data/panels/*.txt"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

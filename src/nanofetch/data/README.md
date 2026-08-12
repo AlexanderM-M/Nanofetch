@@ -11,7 +11,7 @@ python scripts/build_annotations.py \
   --grch37 gencode.v50lift37.annotation.gtf.gz \
   --grch38 gencode.v50.annotation.gtf.gz \
   --t2t chm13v2.0_RefSeq_Liftoff_v5.3.gff.gz \
-  --output src/bamregions/data
+  --output src/nanofetch/data
 ```
 
 The CNS panel is a convenience list and is not a validated clinical assay.

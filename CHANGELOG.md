@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.1.0 - unreleased
+## 0.2.0 - unreleased
+
+- Rename the distribution, Python package, and command from `bamregions` to
+  `nanofetch`.
+
+## 0.1.0
 
 - Extract one indexed BAM per gene with configurable padding.
 - Support GRCh37, GRCh38, and T2T-CHM13v2.0.
@@ -8,4 +13,3 @@
   gene intervals.
 - Add assembly auto-detection, contig aliases, compact gene notation, the CNS
   panel, alignment flag controls, output indexing, dry-run, and manifests.
-

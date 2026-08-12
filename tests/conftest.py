@@ -3,8 +3,8 @@ from pathlib import Path
 import pysam
 import pytest
 
-from bamregions.annotations import resolve_gene
-from bamregions.assemblies import CHROMOSOME_LENGTHS
+from nanofetch.annotations import resolve_gene
+from nanofetch.assemblies import CHROMOSOME_LENGTHS
 
 
 def _alignment(name, start, flag=0):
