@@ -1,4 +1,5 @@
 from pathlib import Path
+from runpy import run_path
 
 import pysam
 import pytest
@@ -8,7 +9,10 @@ from nanofetch.cli import run
 from nanofetch.errors import NanoFetchError
 from nanofetch.extract import extract_gene
 from nanofetch.plot import render_coverage_svg, summarize_coverage
-from scripts.build_example_plot import example_summary
+
+
+EXAMPLE_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "build_example_plot.py"
+example_summary = run_path(str(EXAMPLE_SCRIPT))["example_summary"]
 
 
 def test_coverage_summary_counts_alignment_classes(grch38_bam, tmp_path):
