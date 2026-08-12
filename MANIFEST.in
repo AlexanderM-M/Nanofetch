@@ -1,8 +1,9 @@
 include CHANGELOG.md
 include CONTRIBUTING.md
+include docs/example-coverage.svg
 include LICENSE
 include README.md
 include scripts/build_annotations.py
+include scripts/build_example_plot.py
 recursive-include src/nanofetch/data *.gz *.json *.md *.txt
 recursive-include tests *.py
-

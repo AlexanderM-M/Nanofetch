@@ -83,6 +83,22 @@ Generate a reproducibility manifest:
 nanofetch tumor.bam EGFR MET --index --manifest regions.tsv
 ```
 
+### SVG coverage plot
+
+Create a self-contained coverage overview for one extracted gene:
+
+```bash
+nanofetch tumor.bam EGFR --plot EGFR.coverage.svg
+```
+
+The plot shows mean aligned-base depth in fixed-width bins, the annotated gene
+body, requested extraction span, assembly and annotation provenance, and counts
+for primary, supplementary, and secondary alignments. It visualizes the output
+BAM, so `--include-supplementary` and `--include-secondary` are reflected in the
+plot. SVG generation has no dependency beyond NanoFetch itself.
+
+![Example NanoFetch coverage plot](https://raw.githubusercontent.com/AlexanderM-M/Nanofetch/main/docs/example-coverage.svg)
+
 Run `nanofetch --help` for all options.
 
 ## What is selected?

@@ -12,6 +12,7 @@ from .assemblies import ASSEMBLY_LABELS, choose_assembly
 from .errors import NanoFetchError
 from .extract import extract_gene, padded_regions, validate_input
 from .panels import available_panels, load_panel, panel_descriptions
+from .plot import summarize_coverage, write_coverage_svg
 
 
 def nonnegative_integer(value: str) -> int:
@@ -54,6 +55,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--force", action="store_true", help="replace existing output BAMs")
     result.add_argument("--dry-run", action="store_true", help="resolve and report without writing")
     result.add_argument("--manifest", type=Path, metavar="TSV", help="write a run manifest")
+    result.add_argument(
+        "--plot", type=Path, metavar="SVG",
+        help="write a binned coverage plot (exactly one gene)",
+    )
     result.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return result
 
@@ -108,6 +113,16 @@ def run(argv: Sequence[str] = None) -> int:
         if not tokens:
             raise NanoFetchError("Select at least one gene or use --panel NAME.")
         symbols = unique_symbols(tokens, assembly)
+        if args.plot and len(symbols) != 1:
+            raise NanoFetchError("--plot requires exactly one resolved gene.")
+        if args.plot and args.dry_run:
+            raise NanoFetchError("--plot cannot be combined with --dry-run.")
+        if args.plot and args.plot.suffix.lower() != ".svg":
+            raise NanoFetchError("--plot output must use the .svg extension.")
+        if args.plot and args.plot.exists() and not args.force:
+            raise NanoFetchError(
+                f"Plot already exists: {args.plot}. Use --force to replace it."
+            )
         metadata = annotation_metadata()[assembly]
         print(f"Genome: {ASSEMBLY_LABELS[assembly]}", file=sys.stderr)
         print(f"Annotation: {metadata['label']}", file=sys.stderr)
@@ -143,6 +158,18 @@ def run(argv: Sequence[str] = None) -> int:
             results.append(result)
             index_note = f" + {result.index.name}" if result.index else ""
             print(f"Wrote {result.output} ({result.alignments} alignments){index_note}")
+            if args.plot:
+                summary = summarize_coverage(
+                    bam=result.output,
+                    symbol=symbol,
+                    intervals=resolve_gene(symbol, assembly),
+                    regions=result.regions,
+                    assembly=ASSEMBLY_LABELS[assembly],
+                    annotation=metadata["label"],
+                    source=args.input.name,
+                )
+                write_coverage_svg(args.plot, summary, force=args.force)
+                print(f"Wrote {args.plot}")
 
     if args.manifest:
         write_manifest(args.manifest, assembly, args.input, results)
@@ -159,4 +186,3 @@ def main() -> None:
     except (OSError, ValueError) as error:
         print(f"nanofetch: error: {error}", file=sys.stderr)
         raise SystemExit(2)
-
