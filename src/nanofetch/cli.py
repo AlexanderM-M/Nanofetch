@@ -1,8 +1,10 @@
 import argparse
 import csv
+import os
 import sys
+import tempfile
 from pathlib import Path
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 import pysam
 
@@ -10,7 +12,7 @@ from . import __version__
 from .annotations import annotation_metadata, resolve_gene, unique_symbols
 from .assemblies import ASSEMBLY_LABELS, choose_assembly
 from .errors import NanoFetchError
-from .extract import extract_gene, padded_regions, validate_input
+from .extract import extract_gene, output_name, padded_regions, validate_input
 from .panels import available_panels, load_panel, panel_descriptions
 from .plot import summarize_coverage, write_coverage_svg
 
@@ -52,7 +54,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--threads", type=positive_integer, default=1)
     result.add_argument("--output-dir", type=Path, default=Path("."), metavar="DIR")
     result.add_argument("--index", action="store_true", help="create BAI indexes for output BAMs")
-    result.add_argument("--force", action="store_true", help="replace existing output BAMs")
+    result.add_argument("--force", action="store_true", help="replace existing outputs")
     result.add_argument("--dry-run", action="store_true", help="resolve and report without writing")
     result.add_argument("--manifest", type=Path, metavar="TSV", help="write a run manifest")
     result.add_argument(
@@ -76,23 +78,103 @@ def print_panels() -> None:
         print(f"{name}\t{descriptions.get(name, '')}")
 
 
-def write_manifest(path: Path, assembly: str, source: Path, results) -> None:
+def write_manifest(
+    path: Path,
+    assembly: str,
+    source: Path,
+    results,
+    force: bool = False,
+) -> None:
+    if path.exists() and not force:
+        raise NanoFetchError(
+            f"Manifest already exists: {path}. Use --force to replace it."
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     metadata = annotation_metadata()[assembly]
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle, delimiter="\t")
-        writer.writerow([
-            "input", "assembly", "annotation", "gene", "regions",
-            "alignments", "output", "index",
-        ])
-        for result in results:
-            regions = ",".join(
-                f"{region.contig}:{region.start + 1}-{region.end}" for region in result.regions
-            )
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            writer = csv.writer(handle, delimiter="\t")
             writer.writerow([
-                source, ASSEMBLY_LABELS[assembly], metadata["label"], result.symbol,
-                regions, result.alignments, result.output, result.index or "",
+                "input", "assembly", "annotation", "gene", "regions",
+                "alignments", "output", "index",
             ])
+            for result in results:
+                regions = ",".join(
+                    f"{region.contig}:{region.start + 1}-{region.end}"
+                    for region in result.regions
+                )
+                writer.writerow([
+                    source, ASSEMBLY_LABELS[assembly], metadata["label"],
+                    result.symbol, regions, result.alignments, result.output,
+                    result.index or "",
+                ])
+        os.replace(str(temporary), str(path))
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def _input_paths(path: Path) -> Tuple[Path, ...]:
+    """Return the input BAM and conventional paths for its BAI/CSI indexes."""
+    resolved = path.resolve()
+    candidates = (path, resolved)
+    for bam in (path, resolved):
+        candidates += (
+            Path(str(bam) + ".bai"),
+            Path(str(bam) + ".csi"),
+            bam.with_suffix(".bai"),
+            bam.with_suffix(".csi"),
+        )
+    return tuple(dict.fromkeys(candidate.resolve() for candidate in candidates))
+
+
+def _planned_mutations(args: argparse.Namespace, symbols: Sequence[str]):
+    """Return every path the run may create, replace, or remove."""
+    planned = []
+    for symbol in symbols:
+        bam = args.output_dir / output_name(symbol)
+        planned.append((f"BAM for {symbol}", bam))
+        # extract_gene removes stale indexes even when a new index is not requested.
+        planned.append((f"BAI for {symbol}", Path(str(bam) + ".bai")))
+        planned.append((f"CSI for {symbol}", Path(str(bam) + ".csi")))
+    if args.plot:
+        planned.append(("coverage plot", args.plot))
+    if args.manifest:
+        planned.append(("manifest", args.manifest))
+    return planned
+
+
+def validate_write_plan(args: argparse.Namespace, symbols: Sequence[str]) -> None:
+    """Reject destructive or ambiguous path combinations before writing."""
+    protected = set(_input_paths(args.input))
+    seen = {}
+    planned = _planned_mutations(args, symbols)
+    for label, path in planned:
+        resolved = path.resolve()
+        if resolved in protected:
+            raise NanoFetchError(
+                f"Refusing to use the input BAM or its index as the {label}: {path}"
+            )
+        if resolved in seen:
+            previous = seen[resolved]
+            raise NanoFetchError(
+                f"Output path conflict: {previous} and {label} both use {path}."
+            )
+        seen[resolved] = label
+        if path.is_dir():
+            raise NanoFetchError(f"Output path is a directory: {path}")
+
+    if not args.force:
+        for label, path in planned:
+            if path.exists():
+                raise NanoFetchError(
+                    f"{label.capitalize()} already exists: {path}. "
+                    "Use --force to replace it."
+                )
 
 
 def run(argv: Sequence[str] = None) -> int:
@@ -119,10 +201,6 @@ def run(argv: Sequence[str] = None) -> int:
             raise NanoFetchError("--plot cannot be combined with --dry-run.")
         if args.plot and args.plot.suffix.lower() != ".svg":
             raise NanoFetchError("--plot output must use the .svg extension.")
-        if args.plot and args.plot.exists() and not args.force:
-            raise NanoFetchError(
-                f"Plot already exists: {args.plot}. Use --force to replace it."
-            )
         metadata = annotation_metadata()[assembly]
         print(f"Genome: {ASSEMBLY_LABELS[assembly]}", file=sys.stderr)
         print(f"Annotation: {metadata['label']}", file=sys.stderr)
@@ -134,17 +212,10 @@ def run(argv: Sequence[str] = None) -> int:
                 region_text = ", ".join(
                     f"{region.contig}:{region.start + 1}-{region.end}" for region in regions
                 )
-                print(f"{symbol}\t{region_text}\t{args.output_dir / (symbol + '.bam')}")
+                print(f"{symbol}\t{region_text}\t{args.output_dir / output_name(symbol)}")
             return 0
 
-        # Fail before writing anything when an output collision is known.
-        if not args.force:
-            collisions = [args.output_dir / f"{symbol}.bam" for symbol in symbols
-                          if (args.output_dir / f"{symbol}.bam").exists()]
-            if collisions:
-                raise NanoFetchError(
-                    f"Output already exists: {collisions[0]}. Use --force to replace it."
-                )
+        validate_write_plan(args, symbols)
 
         results = []
         for symbol in symbols:
@@ -172,7 +243,7 @@ def run(argv: Sequence[str] = None) -> int:
                 print(f"Wrote {args.plot}")
 
     if args.manifest:
-        write_manifest(args.manifest, assembly, args.input, results)
+        write_manifest(args.manifest, assembly, args.input, results, force=args.force)
         print(f"Wrote {args.manifest}")
     return 0
 

@@ -143,7 +143,12 @@ does not modify the input or create an input index automatically.
 Existing output BAMs are protected unless `--force` is supplied. Outputs are
 written to a temporary file and moved into place only after writing succeeds.
 When an output is replaced, any stale BAI or CSI is removed. `--index` creates a
-fresh BAI.
+fresh BAI. Plot and manifest files receive the same collision protection, and
+manifests are also written atomically.
+
+Before extraction starts, `nanofetch` checks all planned BAM, index, plot, and
+manifest paths for conflicts. It refuses to use the input BAM or either of its
+conventional index paths as an output, even when `--force` is supplied.
 
 ## Built-in CNS panel
 
@@ -172,7 +177,7 @@ Source URLs, SHA-256 digests, labels, and record counts are stored in
 
 ## Scope
 
-Version 0.1 intentionally writes one BAM per gene. Potential later additions
+NanoFetch currently writes one BAM per gene. Potential later additions
 include custom BED/GTF annotations, CRAM output, mate retrieval, all-segment
 retrieval, and combined multi-gene BAMs.
 

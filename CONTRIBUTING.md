@@ -17,3 +17,6 @@ gene tables manually; regenerate them with `scripts/build_annotations.py`.
 Please add tests for behavior changes. Clinical claims and opaque panel changes
 are out of scope.
 
+Release artifacts must be built from a clean checkout or after removing ignored
+`build/`, `dist/`, and `*.egg-info` directories. Install and smoke-test the built
+wheel itself before uploading it; source-tree tests do not verify wheel contents.
