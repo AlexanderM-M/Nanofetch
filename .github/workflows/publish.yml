@@ -38,7 +38,6 @@ jobs:
           nanofetch --version
           nanofetch --list-panels
           python -c "from nanofetch.annotations import resolve_gene; [resolve_gene('EGFR', assembly) for assembly in ('grch37', 'grch38', 't2t')]"
-          python -c "import importlib.util; assert importlib.util.find_spec('bamregions') is None"
 
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

@@ -2,8 +2,7 @@
 
 ## 0.2.0 - unreleased
 
-- Rename the distribution, Python package, and command from `bamregions` to
-  `nanofetch`.
+- Adopt NanoFetch as the distribution, Python package, and command name.
 - Add dependency-free SVG coverage plots with `--plot FILE.svg`.
 - Prevent BAM, index, plot, and manifest output paths from conflicting with the
   input or with each other.
