@@ -4,33 +4,27 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
-  build-and-publish:
-    name: Build and publish Python distributions
+  build:
+    name: Test and build distributions
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/nanofetch
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
         with:
-          python-version: "3.12"
-
-      - name: Test and build distributions
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Test and build
         run: |
-          python -m pip install --upgrade pip build
+          python -m pip install build twine
           python -m pip install ".[test]"
-          python -m pytest
+          pytest
           python -m build
-
+          python -m twine check dist/*
       - name: Smoke-test the built wheel
         run: |
           python -m pip install --force-reinstall --no-deps dist/nanofetch-*.whl
@@ -38,6 +32,24 @@ jobs:
           nanofetch --version
           nanofetch --list-panels
           python -c "from nanofetch.annotations import resolve_gene; [resolve_gene('EGFR', assembly) for assembly in ('grch37', 'grch38', 't2t')]"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
 
-      - name: Publish distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/nanofetch
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: python-package-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

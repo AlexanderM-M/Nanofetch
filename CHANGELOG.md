@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - unreleased
+## 0.2.0 - 2026-09-01
 
 - Adopt NanoFetch as the distribution, Python package, and command name.
 - Add dependency-free SVG coverage plots with `--plot FILE.svg`.
