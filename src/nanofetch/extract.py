@@ -1,7 +1,8 @@
 import os
 import tempfile
+from itertools import chain
 from pathlib import Path
-from typing import List, Mapping, Sequence, Tuple
+from typing import Iterable, Iterator, List, Mapping, Sequence, Tuple
 
 import pysam
 
@@ -26,32 +27,77 @@ def padded_regions(
         end = min(length, interval.end + padding)
         raw.append(Region(contig, start, end))
 
+    return merge_regions(raw, header_contigs)
+
+
+def merge_regions(
+    regions: Iterable[Region], header_contigs: Mapping[str, int]
+) -> Tuple[Region, ...]:
+    """Return a coordinate-sorted union of regions."""
     order = {contig: index for index, contig in enumerate(header_contigs)}
-    raw.sort(key=lambda region: (order[region.contig], region.start, region.end))
+    raw = sorted(
+        regions, key=lambda region: (order[region.contig], region.start, region.end)
+    )
     merged: List[Region] = []
     for region in raw:
-        if merged and merged[-1].contig == region.contig and region.start <= merged[-1].end:
+        if (
+            merged
+            and merged[-1].contig == region.contig
+            and region.start <= merged[-1].end
+        ):
             previous = merged[-1]
-            merged[-1] = Region(previous.contig, previous.start, max(previous.end, region.end))
+            merged[-1] = Region(
+                previous.contig, previous.start, max(previous.end, region.end)
+            )
         else:
             merged.append(region)
     return tuple(merged)
 
 
+def combined_regions(
+    groups: Iterable[Sequence[Region]], header_contigs: Mapping[str, int]
+) -> Tuple[Region, ...]:
+    """Return the union of multiple genes' extraction regions."""
+    return merge_regions(chain.from_iterable(groups), header_contigs)
+
+
+def iter_region_alignments(
+    source: pysam.AlignmentFile, regions: Sequence[Region]
+) -> Iterator[pysam.AlignedSegment]:
+    """Yield coordinate-sorted records once across a sorted region union."""
+    previous = None
+    for region in regions:
+        for alignment in source.fetch(region.contig, region.start, region.end):
+            end = alignment.reference_end
+            if (
+                previous is not None
+                and previous.contig == region.contig
+                and end is not None
+                and alignment.reference_start < previous.end
+                and end > previous.start
+            ):
+                continue
+            yield alignment
+        previous = region
+
+
 def validate_input(source: pysam.AlignmentFile, path: Path) -> None:
-    if not source.is_bam:
-        raise NanoFetchError(f"Input must be BAM; {path} is not a BAM file.")
+    if not (source.is_bam or source.is_cram):
+        raise NanoFetchError(
+            f"Input must be BAM or CRAM; {path} is not a supported alignment file."
+        )
     try:
         source.check_index()
     except (ValueError, OSError) as error:
         raise NanoFetchError(
-            f"Input BAM is not indexed: {path}. Create an index with "
+            f"Input alignment is not indexed: {path}. Create an index with "
             f"'samtools index {path}' or 'pysam.index(\"{path}\")'."
         ) from error
     sort_order = source.header.to_dict().get("HD", {}).get("SO")
     if sort_order and sort_order != "coordinate":
         raise NanoFetchError(
-            f"Input BAM declares sort order {sort_order!r}; coordinate sorting is required."
+            f"Input alignment declares sort order {sort_order!r}; "
+            "coordinate sorting is required."
         )
 
 
@@ -85,17 +131,44 @@ def extract_gene(
     index_output: bool = False,
     force: bool = False,
 ) -> ExtractionResult:
-    if threads < 1:
-        raise NanoFetchError("--threads must be at least 1.")
     header_contigs = dict(zip(source.references, source.lengths))
     regions = padded_regions(intervals, header_contigs, padding)
     output = output_dir / output_name(symbol)
+    return extract_regions(
+        source,
+        symbol,
+        regions,
+        output,
+        include_supplementary=include_supplementary,
+        include_secondary=include_secondary,
+        threads=threads,
+        index_output=index_output,
+        force=force,
+    )
+
+
+def extract_regions(
+    source: pysam.AlignmentFile,
+    symbol: str,
+    regions: Sequence[Region],
+    output: Path,
+    include_supplementary: bool = False,
+    include_secondary: bool = False,
+    threads: int = 1,
+    index_output: bool = False,
+    force: bool = False,
+) -> ExtractionResult:
+    """Extract a sorted region union to one BAM."""
+    if threads < 1:
+        raise NanoFetchError("--threads must be at least 1.")
     if output.exists() and not force:
-        raise NanoFetchError(f"Output already exists: {output}. Use --force to replace it.")
-    output_dir.mkdir(parents=True, exist_ok=True)
+        raise NanoFetchError(
+            f"Output already exists: {output}. Use --force to replace it."
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
 
     descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{output.name}.", suffix=".tmp", dir=str(output_dir)
+        prefix=f".{output.name}.", suffix=".tmp", dir=str(output.parent)
     )
     os.close(descriptor)
     temporary = Path(temporary_name)
@@ -104,14 +177,13 @@ def extract_gene(
         with pysam.AlignmentFile(
             str(temporary), "wb", header=header_with_program(source), threads=threads
         ) as destination:
-            for region in regions:
-                for alignment in source.fetch(region.contig, region.start, region.end):
-                    if alignment.is_secondary and not include_secondary:
-                        continue
-                    if alignment.is_supplementary and not include_supplementary:
-                        continue
-                    destination.write(alignment)
-                    count += 1
+            for alignment in iter_region_alignments(source, regions):
+                if alignment.is_secondary and not include_secondary:
+                    continue
+                if alignment.is_supplementary and not include_supplementary:
+                    continue
+                destination.write(alignment)
+                count += 1
         os.replace(str(temporary), str(output))
     except Exception:
         temporary.unlink(missing_ok=True)
@@ -127,5 +199,7 @@ def extract_gene(
             pysam.index(*args)
             index_path = Path(str(output) + ".bai")
         except Exception as error:
-            raise NanoFetchError(f"Created {output}, but indexing failed: {error}") from error
+            raise NanoFetchError(
+                f"Created {output}, but indexing failed: {error}"
+            ) from error
     return ExtractionResult(symbol, output, regions, count, index_path)

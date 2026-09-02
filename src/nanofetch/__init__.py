@@ -1,3 +1,3 @@
-"""Extract small, named gene regions from indexed BAM files."""
+"""Extract small, named gene regions from indexed alignment files."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

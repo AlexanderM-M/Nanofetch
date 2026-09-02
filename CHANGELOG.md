@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 - unreleased
+
+- Add deduplicated combined BAM output for multiple genes.
+- Accept indexed CRAM input with an optional reference FASTA.
+- Add custom gene files, BED export, and per-gene coverage QC summaries.
+
 ## 0.2.0 - 2026-09-01
 
 - Adopt NanoFetch as the distribution, Python package, and command name.

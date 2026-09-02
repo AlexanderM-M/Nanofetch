@@ -10,8 +10,9 @@ Wrote EGFR.bam (18432 alignments) + EGFR.bam.bai
 ```
 
 `nanofetch` turns gene symbols into reproducible genomic intervals, adds padding,
-and extracts overlapping alignments from a coordinate-sorted BAM. It supports
-GRCh37, GRCh38, and the telomere-to-telomere `T2T-CHM13v2.0` (`hs1`) assembly.
+and extracts overlapping alignments from coordinate-sorted BAM or CRAM files. It
+supports GRCh37, GRCh38, and the telomere-to-telomere `T2T-CHM13v2.0` (`hs1`)
+assembly.
 
 ## Install
 
@@ -49,6 +50,19 @@ Several genes:
 nanofetch tumor.bam --genes EGFR CDK4 PDGFRA CDKN2A MET
 ```
 
+Write one deduplicated, indexed BAM for all selected genes:
+
+```bash
+nanofetch tumor.bam --panel cns --combined cns.bam --index
+```
+
+Read a custom panel containing whitespace- or comma-separated symbols and `#`
+comments:
+
+```bash
+nanofetch tumor.bam --gene-file my-panel.txt --combined panel.bam --index
+```
+
 Compact families are accepted:
 
 ```bash
@@ -68,6 +82,12 @@ nanofetch t2t-aligned.bam EGFR --genome t2t
 nanofetch t2t-aligned.bam --panel cns --genome hs1
 ```
 
+Indexed CRAM input is supported. Supply its reference explicitly when required:
+
+```bash
+nanofetch tumor.cram EGFR --reference GRCh38.fa --index
+```
+
 Inspect the resolved regions without writing BAMs:
 
 ```console
@@ -82,6 +102,21 @@ Generate a reproducibility manifest:
 ```bash
 nanofetch tumor.bam EGFR MET --index --manifest regions.tsv
 ```
+
+Export resolved padded regions as BED without extracting BAMs:
+
+```bash
+nanofetch tumor.bam --gene-file my-panel.txt --write-bed regions.bed --dry-run
+```
+
+Write compact gene-body coverage QC for every selected gene:
+
+```bash
+nanofetch tumor.bam --panel cns --combined cns.bam --summary coverage.tsv
+```
+
+The summary reports alignment count, mean depth, mean mapping quality, and the
+percentage of gene bases covered at 1×, 10×, and 30×.
 
 ### SVG coverage plot
 
@@ -112,7 +147,7 @@ types that overlap the region.
 
 `--include-supplementary` does **not** retrieve distant segments merely because a
 different segment from the same read overlaps the requested gene. That operation
-requires a read-name-based second pass and is intentionally outside the v0.1
+requires a read-name-based second pass and is intentionally outside the default
 semantics.
 
 Overlapping padded intervals for multiple copies of the same symbol are merged, so
@@ -137,8 +172,9 @@ chromosomes.
 
 ## Input and output safety
 
-The input must be a coordinate-sorted BAM with a BAI or CSI index. `nanofetch`
-does not modify the input or create an input index automatically.
+The input must be coordinate-sorted and indexed: BAM uses BAI or CSI, while CRAM
+uses CRAI. CRAM decoding can use `--reference FASTA`. `nanofetch` does not modify
+the input or create an input index automatically.
 
 Existing output BAMs are protected unless `--force` is supplied. Outputs are
 written to a temporary file and moved into place only after writing succeeds.
@@ -177,9 +213,9 @@ Source URLs, SHA-256 digests, labels, and record counts are stored in
 
 ## Scope
 
-NanoFetch currently writes one BAM per gene. Potential later additions
-include custom BED/GTF annotations, CRAM output, mate retrieval, all-segment
-retrieval, and combined multi-gene BAMs.
+NanoFetch writes one BAM per gene by default or a single union with `--combined`.
+Potential later additions include custom GTF annotations, CRAM output, mate
+retrieval, and all-segment retrieval.
 
 ## License
 
