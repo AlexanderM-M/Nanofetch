@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 - unreleased
+## 0.3.0 - 2026-09-03
 
 - Add deduplicated combined BAM output for multiple genes.
 - Accept indexed CRAM input with an optional reference FASTA.
