@@ -1,0 +1,56 @@
+name: Bug report
+description: Report an error or unexpected NanoFetch behavior.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check the [troubleshooting guide](https://github.com/AlexanderM-M/Nanofetch/blob/main/docs/troubleshooting.md) first.
+        Use synthetic examples where possible. Do not upload patient data or private alignment files.
+  - type: input
+    id: version
+    attributes:
+      label: NanoFetch version
+      description: Run nanofetch --version.
+      placeholder: nanofetch 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, and installation method (pip, pipx, or source).
+    validations:
+      required: true
+  - type: dropdown
+    id: assembly
+    attributes:
+      label: Alignment assembly
+      options:
+        - GRCh37 / hg19
+        - GRCh38 / hg38
+        - T2T-CHM13v2.0 / hs1
+        - Other or unknown
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and reproduction steps
+      description: Include the command and whether the input is BAM or CRAM, sorted, and indexed. Replace private paths with placeholders.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and error output
+      description: Include the complete error text, with private information removed.
+      render: text
+    validations:
+      required: true

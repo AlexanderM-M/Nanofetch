@@ -46,72 +46,105 @@ def positive_integer(value: str) -> int:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
         prog="nanofetch",
-        description="Ridiculously easy gene-region alignment extraction.",
+        description="Extract gene regions from BAM and CRAM files, offline.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  nanofetch tumor.bam EGFR --index\n"
+            "  nanofetch tumor.bam --panel cns --output-dir results --index\n"
+            "  nanofetch tumor.bam EGFR MET --combined results/panel.bam --index\n"
+            "\n"
+            "Output paths are relative to the current working directory.\n"
+            "--output-dir applies only to per-gene BAMs and their indexes.\n"
+            "Use --dry-run to preview regions and BAM destinations."
+        ),
     )
     result.add_argument(
         "input", nargs="?", type=Path, help="coordinate-sorted, indexed BAM or CRAM"
     )
     result.add_argument("gene", nargs="*", help="one or more gene symbols")
-    result.add_argument(
+    selection = result.add_argument_group("gene selection")
+    inputs = result.add_argument_group("input and assembly")
+    extraction = result.add_argument_group("extraction")
+    outputs = result.add_argument_group("outputs and reports")
+    selection.add_argument(
         "--genes", nargs="+", default=[], metavar="GENE", help="additional gene symbols"
     )
-    result.add_argument(
+    selection.add_argument(
         "--gene-file",
         action="append",
         default=[],
         type=Path,
         metavar="FILE",
-        help="gene symbols or compact families, with # comments",
+        help="gene file with whitespace/comma separators and # comments; repeatable",
     )
-    result.add_argument(
-        "--panel", action="append", default=[], metavar="NAME", help="built-in panel"
+    selection.add_argument(
+        "--panel", action="append", default=[], metavar="NAME",
+        help="built-in panel (see --list-panels); repeatable",
     )
-    result.add_argument(
+    selection.add_argument(
         "--list-panels", action="store_true", help="list built-in panels and exit"
     )
-    result.add_argument(
+    inputs.add_argument(
         "--genome",
         default="auto",
         metavar="BUILD",
         help="auto, grch37/hg19, grch38/hg38, or t2t/hs1 (default: auto)",
     )
-    result.add_argument(
+    inputs.add_argument(
         "--reference", type=Path, metavar="FASTA", help="reference FASTA for CRAM input"
     )
-    result.add_argument(
-        "--padding", type=nonnegative_integer, default=1_000_000, metavar="BP"
+    extraction.add_argument(
+        "--padding", type=nonnegative_integer, default=1_000_000, metavar="BP",
+        help="bases added on each side of a gene (default: 1000000; 0 for gene only)",
     )
-    result.add_argument("--include-supplementary", action="store_true")
-    result.add_argument("--include-secondary", action="store_true")
-    result.add_argument("--threads", type=positive_integer, default=1)
-    result.add_argument("--output-dir", type=Path, default=Path("."), metavar="DIR")
-    result.add_argument(
+    extraction.add_argument(
+        "--include-supplementary", action="store_true",
+        help="retain overlapping supplementary alignments (excluded by default)",
+    )
+    extraction.add_argument(
+        "--include-secondary", action="store_true",
+        help="retain overlapping secondary alignments (excluded by default)",
+    )
+    extraction.add_argument(
+        "--threads", type=positive_integer, default=1,
+        help="alignment I/O threads (default: 1)",
+    )
+    outputs.add_argument(
+        "--output-dir", type=Path, default=Path("."), metavar="DIR",
+        help="directory for per-gene BAMs and indexes only (default: current directory)",
+    )
+    outputs.add_argument(
         "--combined",
         type=Path,
         metavar="BAM",
-        help="write all selected genes to one BAM",
+        help="write all selected genes to one deduplicated BAM at this path",
     )
-    result.add_argument(
+    outputs.add_argument(
         "--index", action="store_true", help="create BAI indexes for output BAMs"
     )
-    result.add_argument("--force", action="store_true", help="replace existing outputs")
-    result.add_argument(
-        "--dry-run", action="store_true", help="resolve regions without extracting BAMs"
+    outputs.add_argument("--force", action="store_true", help="replace existing outputs")
+    extraction.add_argument(
+        "--dry-run", action="store_true",
+        help="preview regions and BAM paths; --write-bed still writes a BED file",
     )
-    result.add_argument(
-        "--manifest", type=Path, metavar="TSV", help="write a run manifest"
+    outputs.add_argument(
+        "--manifest", type=Path, metavar="TSV",
+        help="write a run manifest at this path (unavailable with --dry-run)",
     )
-    result.add_argument(
-        "--summary", type=Path, metavar="TSV", help="write per-gene coverage QC"
+    outputs.add_argument(
+        "--summary", type=Path, metavar="TSV",
+        help="write gene-body coverage QC at this path (unavailable with --dry-run)",
     )
-    result.add_argument(
-        "--write-bed", type=Path, metavar="BED", help="write resolved padded regions"
+    outputs.add_argument(
+        "--write-bed", type=Path, metavar="BED",
+        help="write padded regions as zero-based, half-open BED at this path",
     )
-    result.add_argument(
+    outputs.add_argument(
         "--plot",
         type=Path,
         metavar="SVG",
-        help="write a binned coverage plot (exactly one gene)",
+        help="write SVG coverage at this path (one gene; unavailable with --dry-run)",
     )
     result.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
@@ -285,7 +318,11 @@ def run(argv: Sequence[str] = None) -> int:
         print_panels()
         return 0
     if args.input is None:
-        raise NanoFetchError("An input BAM or CRAM is required.")
+        raise NanoFetchError(
+            "An input BAM or CRAM is required.\n"
+            "Example: nanofetch tumor.bam EGFR --index\n"
+            "Run 'nanofetch --help' for options and more examples."
+        )
     if not args.input.is_file():
         raise NanoFetchError(f"Input does not exist: {args.input}")
     if args.reference and not args.reference.is_file():

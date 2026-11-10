@@ -1,223 +1,102 @@
 # NanoFetch
 
-Ridiculously easy gene-region BAM extraction.
+Extract gene regions from BAM and CRAM files, offline.
 
-```console
-nanofetch tumor.bam EGFR --index
-Genome: GRCh38
-Annotation: GENCODE 50 (GRCh38.p14)
-Wrote EGFR.bam (18432 alignments) + EGFR.bam.bai
-```
+[![Tests](https://github.com/AlexanderM-M/Nanofetch/actions/workflows/tests.yml/badge.svg)](https://github.com/AlexanderM-M/Nanofetch/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/nanofetch)](https://pypi.org/project/nanofetch/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AlexanderM-M/Nanofetch/blob/main/LICENSE)
 
-`nanofetch` turns gene symbols into reproducible genomic intervals, adds padding,
-and extracts overlapping alignments from coordinate-sorted BAM or CRAM files. It
-supports GRCh37, GRCh38, and the telomere-to-telomere `T2T-CHM13v2.0` (`hs1`)
-assembly.
+NanoFetch turns gene symbols into genomic intervals and extracts overlapping
+alignments, with configurable padding. It bundles versioned annotations for
+**GRCh37, GRCh38, and T2T-CHM13v2.0** and detects the assembly from chromosome
+lengths. No annotation downloads are needed at runtime.
 
 ## Install
 
-Python 3.9 or newer is required.
+Requires Python 3.9 or newer.
 
 ```bash
 python -m pip install nanofetch
 ```
 
 For an isolated command-line installation, use `pipx install nanofetch`.
+`pysam` is the only runtime dependency; a separate `samtools` installation is
+not required. For development, see [Contributing](https://github.com/AlexanderM-M/Nanofetch/blob/main/CONTRIBUTING.md).
 
-For local development:
+## Quick start
 
-```bash
-git clone https://github.com/AlexanderM-M/Nanofetch.git
-cd Nanofetch
-python -m pip install -e '.[test]'
-pytest
-```
-
-`pysam` is the only runtime dependency. A separate `samtools` installation is not
-required.
-
-## Usage
-
-One gene, using the default 1 Mb padding on both sides:
+Use your own **coordinate-sorted, indexed** BAM or CRAM file:
 
 ```bash
-nanofetch tumor.bam EGFR
+nanofetch tumor.bam EGFR --index
 ```
 
-Several genes:
+This writes `EGFR.bam` and `EGFR.bam.bai` in the current directory and reports
+the detected assembly, annotation version, and number of extracted alignments.
+Preview the region first with `nanofetch tumor.bam EGFR --dry-run`.
+
+| Default | Behavior |
+|---|---|
+| Region | Gene interval plus **1 Mb on each side**; use `--padding 0` for the gene alone |
+| Records | Overlapping alignments; secondary and supplementary records excluded |
+| Output | One BAM per gene in the current directory |
+| Indexing | Opt in with `--index` |
+| Existing files | Protected unless `--force` is supplied |
+
+## Common workflows
+
+**One gene**, with output in a sample directory:
 
 ```bash
-nanofetch tumor.bam --genes EGFR CDK4 PDGFRA CDKN2A MET
+nanofetch tumor.bam EGFR --output-dir results/tumor --index
 ```
 
-Write one deduplicated, indexed BAM for all selected genes:
+**A panel**, with one BAM per gene:
 
 ```bash
-nanofetch tumor.bam --panel cns --combined cns.bam --index
+nanofetch tumor.bam --panel cns --output-dir results/tumor-cns --index
 ```
 
-Read a custom panel containing whitespace- or comma-separated symbols and `#`
-comments:
+**One combined BAM**, with overlapping regions deduplicated:
 
 ```bash
-nanofetch tumor.bam --gene-file my-panel.txt --combined panel.bam --index
+nanofetch tumor.bam EGFR CDK4 PDGFRA --combined results/tumor-panel.bam --index
 ```
 
-Compact families are accepted:
+`--output-dir` applies only to per-gene BAMs and their indexes. For a combined
+BAM or reports, provide the full desired path, such as
+`--manifest results/tumor/regions.tsv`. Relative paths start in your current
+working directory. See [output locations](https://github.com/AlexanderM-M/Nanofetch/blob/main/docs/usage.md#where-outputs-go).
+
+## Coverage overview
+
+Extract a gene and create a self-contained SVG plot:
 
 ```bash
-nanofetch tumor.bam CDKN2A/B NTRK1/2/3
+nanofetch tumor.bam EGFR --output-dir results/egfr-qc --index \
+  --plot results/egfr-qc/coverage.svg
 ```
-
-Use the built-in CNS convenience panel:
-
-```bash
-nanofetch tumor.bam --panel cns --index --output-dir cns-regions
-```
-
-Use T2T-CHM13 explicitly, or let `nanofetch` detect it from chromosome lengths:
-
-```bash
-nanofetch t2t-aligned.bam EGFR --genome t2t
-nanofetch t2t-aligned.bam --panel cns --genome hs1
-```
-
-Indexed CRAM input is supported. Supply its reference explicitly when required:
-
-```bash
-nanofetch tumor.cram EGFR --reference GRCh38.fa --index
-```
-
-Inspect the resolved regions without writing BAMs:
-
-```console
-nanofetch tumor.bam EGFR --dry-run
-Genome: GRCh38
-Annotation: GENCODE 50 (GRCh38.p14)
-EGFR   chr7:54018820-56211628   EGFR.bam
-```
-
-Generate a reproducibility manifest:
-
-```bash
-nanofetch tumor.bam EGFR MET --index --manifest regions.tsv
-```
-
-Export resolved padded regions as BED without extracting BAMs:
-
-```bash
-nanofetch tumor.bam --gene-file my-panel.txt --write-bed regions.bed --dry-run
-```
-
-Write compact gene-body coverage QC for every selected gene:
-
-```bash
-nanofetch tumor.bam --panel cns --combined cns.bam --summary coverage.tsv
-```
-
-The summary reports alignment count, mean depth, mean mapping quality, and the
-percentage of gene bases covered at 1×, 10×, and 30×.
-
-### SVG coverage plot
-
-Create a self-contained coverage overview for one extracted gene:
-
-```bash
-nanofetch tumor.bam EGFR --plot EGFR.coverage.svg
-```
-
-The plot shows mean aligned-base depth in fixed-width bins, the annotated gene
-body, requested extraction span, assembly and annotation provenance, and counts
-for primary, supplementary, and secondary alignments. It visualizes the output
-BAM, so `--include-supplementary` and `--include-secondary` are reflected in the
-plot. SVG generation has no dependency beyond NanoFetch itself.
 
 ![Example NanoFetch coverage plot](https://raw.githubusercontent.com/AlexanderM-M/Nanofetch/main/docs/example-coverage.svg)
 
-Run `nanofetch --help` for all options.
+## Documentation and support
 
-## What is selected?
+- [Usage guide](https://github.com/AlexanderM-M/Nanofetch/blob/main/docs/usage.md): custom panels, CRAM references, BED export,
+  coverage summaries, manifests, and alignment selection.
+- [Troubleshooting](https://github.com/AlexanderM-M/Nanofetch/blob/main/docs/troubleshooting.md): installation, indexes, assembly
+  detection, gene names, and empty outputs.
+- [Annotation provenance](https://github.com/AlexanderM-M/Nanofetch/blob/main/docs/annotations.md): pinned sources and checksums.
+- [Changelog](https://github.com/AlexanderM-M/Nanofetch/blob/main/CHANGELOG.md) and [contribution guide](https://github.com/AlexanderM-M/Nanofetch/blob/main/CONTRIBUTING.md).
+- [Report a bug or request a feature](https://github.com/AlexanderM-M/Nanofetch/issues/new/choose).
 
-An alignment is selected when its aligned reference span overlaps the padded gene
-interval. It does not need to span the entire region.
+Run `nanofetch --help` for all options or `nanofetch --list-panels` for installed
+panel names and descriptions. The built-in CNS panel is a convenience set, not
+a validated clinical assay.
 
-By default, secondary (`0x100`) and supplementary (`0x800`) records are excluded.
-Use `--include-secondary` and `--include-supplementary` to retain records of those
-types that overlap the region.
-
-`--include-supplementary` does **not** retrieve distant segments merely because a
-different segment from the same read overlaps the requested gene. That operation
-requires a read-name-based second pass and is intentionally outside the default
-semantics.
-
-Overlapping padded intervals for multiple copies of the same symbol are merged, so
-an alignment is not written twice. Separate gene output BAMs may contain the same
-alignment when their padded regions overlap; this is expected.
-
-## Genome detection and contig names
-
-Automatic detection compares exact primary-chromosome lengths in the BAM header.
-It will stop rather than guess when the build is ambiguous. The explicit spellings
-below are accepted:
-
-| Assembly | Accepted names | Bundled annotation |
-|---|---|---|
-| GRCh37 | `grch37`, `hg19` | GENCODE 50lift37 |
-| GRCh38 | `grch38`, `hg38` | GENCODE 50 |
-| T2T-CHM13v2.0 | `t2t`, `hs1`, `chm13`, `chm13v2.0` | RefSeq/Liftoff v5.3 |
-
-Both `chr7` and `7` naming styles are supported. T2T GenBank names such as
-`CP068271.2` and RefSeq names such as `NC_060931.1` are also mapped to their
-chromosomes.
-
-## Input and output safety
-
-The input must be coordinate-sorted and indexed: BAM uses BAI or CSI, while CRAM
-uses CRAI. CRAM decoding can use `--reference FASTA`. `nanofetch` does not modify
-the input or create an input index automatically.
-
-Existing output BAMs are protected unless `--force` is supplied. Outputs are
-written to a temporary file and moved into place only after writing succeeds.
-When an output is replaced, any stale BAI or CSI is removed. `--index` creates a
-fresh BAI. Plot and manifest files receive the same collision protection, and
-manifests are also written atomically.
-
-Before extraction starts, `nanofetch` checks all planned BAM, index, plot, and
-manifest paths for conflicts. It refuses to use the input BAM or either of its
-conventional index paths as an output, even when `--force` is supplied.
-
-## Built-in CNS panel
-
-The `cns` panel currently contains:
-
-```text
-EGFR PDGFRA CDK4 MDM2 MDM4 MET CDKN2A CDKN2B NF1 PTEN TERT
-BRAF FGFR3 NTRK1 NTRK2 NTRK3 ALK
-```
-
-This is a transparent convenience set, not a validated clinical assay. Use
-`nanofetch --list-panels` to inspect installed panels.
-
-## Annotation provenance
-
-The package works offline. It bundles compact gene-level tables generated from
-pinned upstream files; it does not bundle complete GTF/GFF files.
-
-- GRCh38: [GENCODE release 50](https://www.gencodegenes.org/human/)
-- GRCh37: [GENCODE 50lift37](https://www.gencodegenes.org/human/grch37_mapped_releases.html)
-- T2T: [T2T-CHM13v2.0 RefSeq/Liftoff v5.3](https://github.com/marbl/CHM13#gene-annotation)
-
-Source URLs, SHA-256 digests, labels, and record counts are stored in
-`src/nanofetch/data/annotations.json`. The deterministic build script is
-`scripts/build_annotations.py`.
-
-## Scope
-
-NanoFetch writes one BAM per gene by default or a single union with `--combined`.
-Potential later additions include custom GTF annotations, CRAM output, mate
-retrieval, and all-segment retrieval.
+NanoFetch extracts overlapping alignments. It does not retrieve distant mates
+or every segment of a read, accept custom GTF annotations, or write CRAM output.
 
 ## License
 
-MIT. T2T consortium data are released under CC0; see the upstream
-[CHM13 repository](https://github.com/marbl/CHM13#data-reuse-and-license).
+[MIT](https://github.com/AlexanderM-M/Nanofetch/blob/main/LICENSE). T2T consortium data are released under CC0; see the upstream
+[CHM13 data reuse policy](https://github.com/marbl/CHM13#data-reuse-and-license).

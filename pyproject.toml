@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nanofetch"
 version = "0.3.0"
-description = "Ridiculously easy gene-region BAM extraction"
+description = "Extract gene regions from BAM and CRAM files, offline"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"

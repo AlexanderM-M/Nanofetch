@@ -1,6 +1,7 @@
 include CHANGELOG.md
 include CONTRIBUTING.md
 include docs/example-coverage.svg
+recursive-include docs *.md
 include LICENSE
 include README.md
 include scripts/build_annotations.py

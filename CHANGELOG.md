@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Group CLI options by task, explain defaults and output paths, and add examples
+  to help and missing-input errors.
+- Simplify the README and add usage, troubleshooting, and annotation guides.
+- Add GitHub bug-report, feature-request, and pull-request templates.
+
 ## 0.3.0 - 2026-09-03
 
 - Add deduplicated combined BAM output for multiple genes.
