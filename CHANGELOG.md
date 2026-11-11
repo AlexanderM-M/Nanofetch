@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 - 2026-11-11
 
 - Refresh SVG plots with a gene-first heading, compact metrics, and a teal palette.
 - Check extraction output conflicts during dry-run.
@@ -9,6 +9,7 @@
   to help and missing-input errors.
 - Simplify the README and add usage, troubleshooting, and annotation guides.
 - Add GitHub bug-report, feature-request, and pull-request templates.
+- Pin the test runner to Ubuntu 24.04 to retain Python 3.9 coverage.
 
 ## 0.3.0 - 2026-09-03
 
