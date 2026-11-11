@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Check extraction output conflicts during dry-run.
+- Clarify coverage plot depth and bin size, and wrap long plot headings.
 - Group CLI options by task, explain defaults and output paths, and add examples
   to help and missing-input errors.
 - Simplify the README and add usage, troubleshooting, and annotation guides.

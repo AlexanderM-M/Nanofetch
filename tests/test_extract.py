@@ -179,6 +179,34 @@ def test_dry_run_reports_the_sanitized_output_name(tmp_path, capsys):
     assert "PCDHA@.bam" not in output
 
 
+@pytest.mark.parametrize("combined", [False, True])
+@pytest.mark.parametrize("suffix", ["", ".bai", ".csi"])
+def test_dry_run_checks_existing_outputs_without_writing(
+    grch38_bam, tmp_path, combined, suffix
+):
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    bam = output_dir / "EGFR.bam"
+    existing = Path(str(bam) + suffix)
+    existing.write_bytes(b"keep me")
+    args = [str(grch38_bam), "EGFR", "--dry-run"]
+    args += ["--combined", str(bam)] if combined else ["--output-dir", str(output_dir)]
+
+    with pytest.raises(NanoFetchError, match="already exists"):
+        run(args)
+    assert run(args + ["--force"]) == 0
+    assert existing.read_bytes() == b"keep me"
+    assert list(output_dir.iterdir()) == [existing]
+
+
+def test_dry_run_rejects_input_as_output_even_with_force(grch38_bam):
+    with pytest.raises(NanoFetchError, match="Refusing to replace"):
+        run([
+            str(grch38_bam), "EGFR", "--dry-run", "--force",
+            "--combined", str(grch38_bam),
+        ])
+
+
 def test_sanitized_collision_is_found_before_any_gene_is_written(tmp_path):
     input_bam = make_bam(
         tmp_path / "t2t.bam", assembly="t2t", contig="chr5"

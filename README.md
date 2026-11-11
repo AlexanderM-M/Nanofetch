@@ -33,7 +33,7 @@ nanofetch tumor.bam EGFR --index
 
 This writes `EGFR.bam` and `EGFR.bam.bai` in the current directory and reports
 the detected assembly, annotation version, and number of extracted alignments.
-Preview the region first with `nanofetch tumor.bam EGFR --dry-run`.
+Preview the region and check output conflicts with `nanofetch tumor.bam EGFR --dry-run`.
 
 | Default | Behavior |
 |---|---|
@@ -78,6 +78,9 @@ nanofetch tumor.bam EGFR --output-dir results/egfr-qc --index \
 ```
 
 ![Example NanoFetch coverage plot](https://raw.githubusercontent.com/AlexanderM-M/Nanofetch/main/docs/example-coverage.svg)
+
+The plot marks the gene body and shows the bin size. Mean depth includes the
+padded region; maximum depth is a bin average.
 
 ## Documentation and support
 

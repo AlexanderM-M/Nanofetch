@@ -257,15 +257,13 @@ def _protected_paths(args: argparse.Namespace) -> set:
 
 
 def _planned_mutations(args: argparse.Namespace, symbols: Sequence[str]):
-    """Return every path the run may create, replace, or remove."""
+    """Return extraction destinations, including those previewed by dry-run."""
     planned = []
-    bams = []
-    if not args.dry_run:
-        bams = (
-            [args.combined]
-            if args.combined
-            else [args.output_dir / output_name(symbol) for symbol in symbols]
-        )
+    bams = (
+        [args.combined]
+        if args.combined
+        else [args.output_dir / output_name(symbol) for symbol in symbols]
+    )
     for index, bam in enumerate(bams):
         label = "combined output" if args.combined else f"BAM for {symbols[index]}"
         planned.append((label, bam))

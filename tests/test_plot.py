@@ -1,5 +1,7 @@
+from dataclasses import replace
 from pathlib import Path
 from runpy import run_path
+from xml.etree import ElementTree
 
 import pysam
 import pytest
@@ -82,3 +84,29 @@ def test_plot_requires_one_gene_and_svg_extension(grch38_bam, tmp_path):
 def test_documented_example_matches_renderer():
     example = Path(__file__).resolve().parents[1] / "docs" / "example-coverage.svg"
     assert example.read_text(encoding="utf-8") == render_coverage_svg(example_summary())
+
+
+def test_plot_explains_depth_and_bin_resolution():
+    svg = render_coverage_svg(example_summary())
+    assert "MEAN REGION DEPTH" in svg
+    assert "Mean depth includes padding" in svg
+    assert "maximum is a bin average" in svg
+    assert "120 bins · ~18.3k bp/bin" in svg
+
+
+def test_plot_wraps_long_metadata_above_summary_cards():
+    source = "sample_" + "a" * 240 + "<&>.bam"
+    summary = replace(example_summary(), symbol="A_LONG_GENE_SYMBOL", source=source)
+    root = ElementTree.fromstring(render_coverage_svg(summary))
+    namespace = {"svg": "http://www.w3.org/2000/svg"}
+    headings = [
+        node for node in root.findall("svg:text", namespace)
+        if node.get("font-size") == "15"
+    ]
+    assert len(headings) > 1
+    assert source in "".join(node.text for node in headings)
+    cards = [
+        node for node in root.findall("svg:rect", namespace)
+        if node.get("height") == "72"
+    ]
+    assert max(float(node.get("y")) for node in headings) < float(cards[0].get("y"))

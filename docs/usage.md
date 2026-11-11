@@ -139,8 +139,9 @@ Existing outputs are protected; use `--force` only when replacement is intended.
 
 `--dry-run` prints resolved regions and planned BAM paths without extracting BAMs.
 It can be combined with `--write-bed`, which **does write a BED file**. It cannot
-be combined with `--manifest`, `--summary`, or `--plot`. A dry run does not check
-whether planned BAM paths already exist; extraction performs that check.
+be combined with `--manifest`, `--summary`, or `--plot`. It checks planned BAM
+and index paths for conflicts; `--force` allows previewing existing outputs
+without replacing them.
 Displayed regions and TSV region strings use 1-based inclusive coordinates;
 BED files use 0-based, half-open coordinates.
 
