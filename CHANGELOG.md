@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refresh SVG plots with a gene-first heading, compact metrics, and a teal palette.
 - Check extraction output conflicts during dry-run.
 - Clarify coverage plot depth and bin size, and wrap long plot headings.
 - Group CLI options by task, explain defaults and output paths, and add examples

@@ -94,7 +94,7 @@ def test_plot_explains_depth_and_bin_resolution():
     assert "120 bins · ~18.3k bp/bin" in svg
 
 
-def test_plot_wraps_long_metadata_above_summary_cards():
+def test_plot_wraps_long_metadata_above_summary_metrics():
     source = "sample_" + "a" * 240 + "<&>.bam"
     summary = replace(example_summary(), symbol="A_LONG_GENE_SYMBOL", source=source)
     root = ElementTree.fromstring(render_coverage_svg(summary))
@@ -105,8 +105,6 @@ def test_plot_wraps_long_metadata_above_summary_cards():
     ]
     assert len(headings) > 1
     assert source in "".join(node.text for node in headings)
-    cards = [
-        node for node in root.findall("svg:rect", namespace)
-        if node.get("height") == "72"
-    ]
-    assert max(float(node.get("y")) for node in headings) < float(cards[0].get("y"))
+    metrics = root.find("svg:g[@id='summary-metrics']", namespace)
+    divider = metrics.find("svg:line", namespace)
+    assert max(float(node.get("y")) for node in headings) < float(divider.get("y1"))

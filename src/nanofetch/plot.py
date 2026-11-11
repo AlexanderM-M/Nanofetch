@@ -218,13 +218,13 @@ def _area_path(lower: Sequence[float], upper: Sequence[float], x: float, y: floa
 def render_coverage_svg(summary: CoverageSummary) -> str:
     """Render a self-contained, accessible SVG document."""
     width = 1200
-    left = 92
-    plot_width = 1030
-    plot_height = 190
-    track_step = 270
+    left = 88
+    plot_width = 1024
+    plot_height = 210
+    track_step = 310
     heading_lines = [
-        (line, 19, 'font-weight="650"')
-        for line in textwrap.wrap(summary.symbol, width=50)
+        (line, 34, 'font-weight="700" letter-spacing="-1"')
+        for line in textwrap.wrap(summary.symbol, width=28)
     ]
     heading_lines += [
         (line, 15, 'class="muted"')
@@ -232,9 +232,9 @@ def render_coverage_svg(summary: CoverageSummary) -> str:
             f"{summary.assembly} · {summary.annotation} · {summary.source}", width=68
         )
     ]
-    cards_y = 84 + len(heading_lines) * 24
-    first_track_y = cards_y + 112
-    height = first_track_y + len(summary.tracks) * track_step + 62
+    metrics_y = 90 + sum(42 if size == 34 else 24 for _, size, _ in heading_lines)
+    first_track_y = metrics_y + 148
+    height = first_track_y + len(summary.tracks) * track_step + 34
     esc = lambda value: html.escape(str(value), quote=True)
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -244,46 +244,64 @@ def render_coverage_svg(summary: CoverageSummary) -> str:
         f'<desc id="description">Binned aligned-base depth across the extracted '
         f'region for {esc(summary.symbol)}.</desc>',
         '<style>',
-        'text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;fill:#0f172a}',
-        '.muted{fill:#64748b}.small{font-size:13px}.label{font-size:14px;font-weight:600}',
-        '.grid{stroke:#dbe3ee;stroke-width:1}.axis{stroke:#94a3b8;stroke-width:1.2}',
-        '.primary{fill:#2563eb}.supplementary{fill:#f59e0b}.secondary{fill:#db2777}',
-        '.gene{fill:#0f766e}.gene-zone{fill:#ccfbf1;opacity:.42}',
+        'text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;fill:#172b30}',
+        '.muted{fill:#607479}.small{font-size:13px}.label{font-size:14px;font-weight:600}',
+        '.grid{stroke:#e4eceb;stroke-width:1}.axis{stroke:#c8d7d5;stroke-width:1}',
+        '.primary{fill:#008577}.supplementary{fill:#d99232}.secondary{fill:#8a74bd}',
+        '.gene{fill:#006e63}.gene-zone{fill:#e9f4f1}',
+        '.metric{font-size:28px;font-weight:600;letter-spacing:-.7px}',
         '</style>',
-        '<rect width="100%" height="100%" fill="#ffffff" rx="18"/>',
-        f'<text x="{left}" y="52" font-size="26" font-weight="750">NanoFetch coverage</text>',
+        '<defs><linearGradient id="coverage-fill" x1="0" y1="0" x2="0" y2="1">'
+        '<stop offset="0%" stop-color="#008577" stop-opacity=".85"/>'
+        '<stop offset="100%" stop-color="#008577" stop-opacity=".18"/>'
+        '</linearGradient></defs>',
+        '<rect width="100%" height="100%" fill="#ffffff"/>',
+        f'<circle cx="{left + 4}" cy="40" r="4" class="primary"/>',
+        f'<text x="{left + 18}" y="44" font-size="12" font-weight="600" '
+        'letter-spacing="1.8">NANOFETCH / COVERAGE</text>',
     ]
-    for index, (label, font_size, attributes) in enumerate(heading_lines):
+    heading_y = 90
+    for label, font_size, attributes in heading_lines:
         lines.append(
-            f'<text x="{left}" y="{82 + index * 24}" font-size="{font_size}" '
+            f'<text x="{left}" y="{heading_y}" font-size="{font_size}" '
             f'{attributes}>{esc(label)}</text>'
         )
+        heading_y += 42 if font_size == 34 else 24
 
-    cards = (
+    metrics = (
         ("ALIGNMENTS", f"{summary.alignments:,}"),
         ("MEAN REGION DEPTH", f"{summary.mean_depth:.1f}×"),
         ("MAX BIN", f"{summary.maximum_depth:.1f}×"),
         ("EXTRACTED SPAN", _format_number(summary.span) + " bp"),
     )
-    for index, (label, value) in enumerate(cards):
-        x = left + index * 202
+    lines.extend((
+        '<g id="summary-metrics">',
+        f'<line x1="{left}" y1="{metrics_y}" x2="{left + plot_width}" '
+        f'y2="{metrics_y}" class="grid"/>',
+    ))
+    for index, (label, value) in enumerate(metrics):
+        x = left + index * (plot_width / 4)
         lines.extend((
-            f'<rect x="{x}" y="{cards_y}" width="184" height="72" rx="10" fill="#f8fafc" '
-            'stroke="#e2e8f0"/>',
-            f'<text x="{x + 14}" y="{cards_y + 24}" class="muted small" font-weight="650">{label}</text>',
-            f'<text x="{x + 14}" y="{cards_y + 55}" font-size="22" font-weight="720">{esc(value)}</text>',
+            f'<text x="{x}" y="{metrics_y + 25}" class="muted" font-size="11" '
+            f'font-weight="600" letter-spacing=".8">{label}</text>',
+            f'<text x="{x}" y="{metrics_y + 61}" class="metric">{esc(value)}</text>',
         ))
+    lines.extend((
+        f'<line x1="{left}" y1="{metrics_y + 82}" x2="{left + plot_width}" '
+        f'y2="{metrics_y + 82}" class="grid"/>',
+        '</g>',
+    ))
 
-    legend_x = 925
     for index, (label, color, count) in enumerate((
         ("Primary", "primary", summary.primary_alignments),
         ("Supplementary", "supplementary", summary.supplementary_alignments),
         ("Secondary", "secondary", summary.secondary_alignments),
     )):
-        y = cards_y + 7 + index * 24
-        lines.append(f'<rect x="{legend_x}" y="{y}" width="12" height="12" rx="2" class="{color}"/>')
+        legend_x = left + index * 230
+        y = metrics_y + 105
+        lines.append(f'<circle cx="{legend_x + 4}" cy="{y}" r="4" class="{color}"/>')
         lines.append(
-            f'<text x="{legend_x + 19}" y="{y + 11}" class="small">'
+            f'<text x="{legend_x + 16}" y="{y + 4}" class="muted small">'
             f'{label} {count:,}</text>'
         )
 
@@ -343,7 +361,8 @@ def render_coverage_svg(summary: CoverageSummary) -> str:
             ("secondary", primary_plus_supplementary, total),
         ):
             path = _area_path(lower, upper, left, y, plot_width, plot_height, scale)
-            lines.append(f'<path d="{path}" class="{css_class}" opacity="0.82"/>')
+            fill = ' style="fill:url(#coverage-fill)"' if css_class == "primary" else ""
+            lines.append(f'<path d="{path}" class="{css_class}"{fill}/>')
         lines.append(
             f'<line x1="{left}" y1="{y + plot_height}" x2="{left + plot_width}" '
             f'y2="{y + plot_height}" class="axis"/>'
@@ -356,7 +375,7 @@ def render_coverage_svg(summary: CoverageSummary) -> str:
                 f'class="muted small">{_format_coordinate(coordinate)}</text>'
             )
 
-        lane_y = y + plot_height + 49
+        lane_y = y + plot_height + 68
         lines.append(
             f'<line x1="{left}" y1="{lane_y}" x2="{left + plot_width}" '
             f'y2="{lane_y}" class="grid"/>'
@@ -370,8 +389,8 @@ def render_coverage_svg(summary: CoverageSummary) -> str:
                 gx = left + (clipped_start - region.start) / (region.end - region.start) * plot_width
                 gw = max(2.0, (clipped_end - clipped_start) / (region.end - region.start) * plot_width)
                 lines.append(
-                    f'<rect x="{gx:.2f}" y="{lane_y - 7}" width="{gw:.2f}" height="14" '
-                    'rx="4" class="gene"/>'
+                    f'<rect x="{gx:.2f}" y="{lane_y - 3}" width="{gw:.2f}" height="6" '
+                    'rx="3" class="gene"/>'
                 )
                 lines.append(
                     f'<text x="{gx + gw / 2:.2f}" y="{lane_y - 13}" text-anchor="middle" '
